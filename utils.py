@@ -82,7 +82,8 @@ class EssentialMatrixTransform:
 
   def estimate(self, src, dst):
     assert src.shape == dst.shape
-    assert src.shape[0] >= 8
+    # assert src.shape[0] >= 8
+    if src.shape[0] < 8: return False
 
     # Setup homogeneous linear equation as dst' * F * src = 0.
     A = np.ones((src.shape[0], 9))
