@@ -1,89 +1,73 @@
 #!/usr/bin/env python3
 import numpy as np
-import open3d as o3d
+import OpenGL.GL as gl
+import pangolin
+from multiprocessing import Process, Queue
 
-def create_camera_frustum(scale=0.2, color=[0, 1, 0]):
-  """
-  Create a simple SLAM-style camera frustum (square + tail).
-  Returns an Open3D LineSet.
-  """
-  # Frustum vertices (unit square at Z=1)
-  pts = np.array([
-    [0, 0, 0],        # camera center
-    [-0.5, -0.5, 1],  # bottom-left
-    [ 0.5, -0.5, 1],  # bottom-right
-    [ 0.5,  0.5, 1],  # top-right
-    [-0.5,  0.5, 1],  # top-left
-  ]) * scale
+from utils import *
 
-  # Edges: center to corners, and square edges
-  lines = [
-    [0, 1], [0, 2], [0, 3], [0, 4],  # tail connections
-    [1, 2], [2, 3], [3, 4], [4, 1]   # square edges
-  ]
+class Renderer:
+  def __init__(self, w, h):
+    self.W = w
+    self.H = h
+    self.poses = None
+    self.q = Queue()
+    self.p = Process(target=self.renderer_main, args=(self.q,))
+    #self.p.daemon = True
+    self.p.start()
 
-  frustum = o3d.geometry.LineSet()
-  frustum.points = o3d.utility.Vector3dVector(pts)
-  frustum.lines = o3d.utility.Vector2iVector(lines)
-  frustum.colors = o3d.utility.Vector3dVector([color] * len(lines))
-  return frustum
+  def display_init(self):
+    pangolin.CreateWindowAndBind('Main', self.W, self.H)
+    gl.glEnable(gl.GL_DEPTH_TEST)
 
+    self.scam = pangolin.OpenGlRenderState(pangolin.ProjectionMatrix(self.W, self.H, 420, 420, self.W//2, self.H//2, 0.2, 100),
+                                      pangolin.ModelViewLookAt(-2, 2, -2, 0, 0, 0, pangolin.AxisDirection.AxisY))
+    handler = pangolin.Handler3D(self.scam)
 
-def draw_scene(pointcloud_np, poses):
-  """
-  Render a SLAM scene with point cloud and camera poses.
-  pointcloud_np : (N, 3) numpy array of points
-  poses         : list of 4x4 numpy arrays (camera extrinsics)
-  """
-  # Create point cloud object
-  pcd = o3d.geometry.PointCloud()
-  pcd.points = o3d.utility.Vector3dVector(pointcloud_np)
-  pcd.paint_uniform_color([0.7, 0.7, 0.7])
+    self.dcam = pangolin.CreateDisplay()
+    self.dcam.SetBounds(0.0, 1.0, 0.0, 1.0, -640.0/480.0)
+    self.dcam.SetHandler(handler)
 
-  # Create camera frustums for each pose
-  frustums = []
-  for T in poses:
-    frustum = create_camera_frustum(scale=0.3, color=[0, 1, 0])
-    frustum.transform(T)
-    frustums.append(frustum)
+  def renderer_main(self, q):
+    print("Initializing 3D Display ...")
+    self.display_init()
 
-  # Draw everything
-  o3d.visualization.draw_geometries([pcd] + frustums)
+    while not pangolin.ShouldQuit():
+    #while True:
+      while not q.empty():
+        self.poses = q.get()
 
+      gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+      self.dcam.Activate(self.scam)
 
-if __name__ == "__main__":
-    # pointcloud (static)
-    points = np.random.rand(2000,3)*5
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
-    pcd.paint_uniform_color([0.7,0.7,0.7])
+      # TODO: poses are wrong (no translation and wrong rotation)
+      # Draw camera
+      if self.poses is not None:
+        #print("Map pose:")
+        #print(self.pose)
+        gl.glLineWidth(1)
+        gl.glColor3f(0.0, 1.0, 0.0)
+        pangolin.DrawCameras(self.poses, 0.5, 0.75, 0.8)
 
-    # fake poses over time
-    poses_list = []
-    for i in range(20):
-      T = np.eye(4)
-      T[:3,3] = [i*0.2, 0, 0]
-      poses_list.append(T)
+        # TODO: handle points in the map as well
+        """
+        points = np.random.random((100000, 3)) * 10
+        gl.glPointSize(2)
+        gl.glColor3f(1.0, 0.0, 0.0)
+        pangolin.DrawPoints(points)
+        """
 
-    # init viewer
-    vis = o3d.visualization.Visualizer()
-    vis.create_window("SLAM viz")
-    vis.add_geometry(pcd)
+      pangolin.FinishFrame()
 
-    # list to accumulate rendered frustums
-    frustums = []
+  def draw(self, frames):
+    if self.q is None:
+      return
+    
+    poses = []
+    for frame in frames:
+      #pose = np.identity(4)
+      #pose[:3, 3] = TfromRt(frame.pose)
+      #poses.append(pose)
+      poses.append(frame.pose)
+    self.q.put(np.array(poses))
 
-    for k, T in enumerate(poses_list):
-      # create ONE new frustum for this frame
-      fr = create_camera_frustum(scale=0.3, color=[0,1,0])
-      fr.transform(T)
-      vis.add_geometry(fr)
-      frustums.append(fr)
-
-      # update viewer
-      vis.poll_events()
-      vis.update_renderer()
-
-    print("Finished, press Q on the window to exit.")
-    vis.run()
-    vis.destroy_window()
