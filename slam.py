@@ -2,15 +2,24 @@
 import sys
 import cv2
 import numpy as np
+import multiprocessing as mp
 
 from utils import *
 from frame import Frame, match_frames
+from renderer import Renderer
+
+class Slam:
+  def __init__(self):
+    pass
 
 
 if __name__ == "__main__":
   if len(sys.argv) != 2:
     print("Usage: python3 frame.py <video_file>")
     sys.exit(1)
+
+  mp.set_start_method("spawn")
+  renderer = Renderer(W, H)
 
   # TODO: proper camera calibration
   F = 525.0
@@ -39,10 +48,12 @@ if __name__ == "__main__":
     # match frames
     f1, f2 = frames[-2], frames[-1]
     idx1, idx2, Rt = match_frames(f1, f2)
-    f2.draw_img(idx1, idx2, f1, f2)
+    f2.pose = np.dot(f1.pose, Rt)
+    renderer.draw(frames)
     print("Rt:", Rt)
 
     # display image
+    f2.draw_img(idx1, idx2, f1, f2)
     cv2.imshow("Display 2D", f2.img)
     if cv2.waitKey(1) & 0xFF == ord('q'): 
       break

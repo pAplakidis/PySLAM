@@ -52,11 +52,12 @@ def match_frames(f1, f2):
 
 
 class Frame:
-  def __init__(self, fid, K, img):
-    self.fid = 0
+  def __init__(self, fid, K, img, pose=np.eye(4)):
+    self.fid = fid
     self.K = K
     self.kpus = None
     self.des = None
+    self.pose = pose
 
     if img is not None:
       self.img = cv2.resize(img, (W, H))

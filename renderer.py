@@ -1,73 +1,62 @@
-#!/usr/bin/env python3
 import numpy as np
-import OpenGL.GL as gl
-import pangolin
+import open3d as o3d
 from multiprocessing import Process, Queue
 
-from utils import *
+def create_camera_frustum(scale=0.2, color=[0,1,0]):
+  pts = np.array([
+    [0,0,0],
+    [-0.5,-0.5,1],
+    [ 0.5,-0.5,1],
+    [ 0.5, 0.5,1],
+    [-0.5, 0.5,1],
+  ]) * scale
+  lines = [[0,1],[0,2],[0,3],[0,4],[1,2],[2,3],[3,4],[4,1]]
+
+  fr = o3d.geometry.LineSet()
+  fr.points = o3d.utility.Vector3dVector(pts)
+  fr.lines  = o3d.utility.Vector2iVector(lines)
+  fr.colors = o3d.utility.Vector3dVector([color]*len(lines))
+  return fr
 
 class Renderer:
   def __init__(self, w, h):
     self.W = w
     self.H = h
-    self.poses = None
     self.q = Queue()
     self.p = Process(target=self.renderer_main, args=(self.q,))
-    #self.p.daemon = True
     self.p.start()
 
-  def display_init(self):
-    pangolin.CreateWindowAndBind('Main', self.W, self.H)
-    gl.glEnable(gl.GL_DEPTH_TEST)
+  def renderer_main(self, q: Queue):
+    vis = o3d.visualization.Visualizer()
+    vis.create_window("Display 3D")#, width=self.W, height=self.H)
+    opt = vis.get_render_option()
+    opt.background_color = np.array([0, 0, 0])
 
-    self.scam = pangolin.OpenGlRenderState(pangolin.ProjectionMatrix(self.W, self.H, 420, 420, self.W//2, self.H//2, 0.2, 100),
-                                      pangolin.ModelViewLookAt(-2, 2, -2, 0, 0, 0, pangolin.AxisDirection.AxisY))
-    handler = pangolin.Handler3D(self.scam)
+    # static scene objects you might add later: map points, axes, etc.
+    geometries = []   # list of LineSets for cameras
+    latest_poses = None
 
-    self.dcam = pangolin.CreateDisplay()
-    self.dcam.SetBounds(0.0, 1.0, 0.0, 1.0, -640.0/480.0)
-    self.dcam.SetHandler(handler)
-
-  def renderer_main(self, q):
-    print("Initializing 3D Display ...")
-    self.display_init()
-
-    while not pangolin.ShouldQuit():
-    #while True:
+    while True:
+      # pull latest poses if any
       while not q.empty():
-        self.poses = q.get()
+        latest_poses = q.get()
 
-      gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-      self.dcam.Activate(self.scam)
+      if latest_poses is not None:
+        # clear old cameras from viewer
+        for g in geometries:
+          vis.remove_geometry(g, reset_bounding_box=False)
+        geometries.clear()
 
-      # TODO: poses are wrong (no translation and wrong rotation)
-      # Draw camera
-      if self.poses is not None:
-        #print("Map pose:")
-        #print(self.pose)
-        gl.glLineWidth(1)
-        gl.glColor3f(0.0, 1.0, 0.0)
-        pangolin.DrawCameras(self.poses, 0.5, 0.75, 0.8)
+        # add new frustums
+        for T in latest_poses:
+          fr = create_camera_frustum(scale=0.3)
+          fr.transform(T)
+          vis.add_geometry(fr, reset_bounding_box=False)
+          geometries.append(fr)
 
-        # TODO: handle points in the map as well
-        """
-        points = np.random.random((100000, 3)) * 10
-        gl.glPointSize(2)
-        gl.glColor3f(1.0, 0.0, 0.0)
-        pangolin.DrawPoints(points)
-        """
-
-      pangolin.FinishFrame()
+      vis.poll_events()
+      vis.update_renderer()
 
   def draw(self, frames):
-    if self.q is None:
-      return
-    
-    poses = []
-    for frame in frames:
-      #pose = np.identity(4)
-      #pose[:3, 3] = TfromRt(frame.pose)
-      #poses.append(pose)
-      poses.append(frame.pose)
+    poses = [f.pose for f in frames]
     self.q.put(np.array(poses))
-
