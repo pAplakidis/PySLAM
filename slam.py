@@ -19,7 +19,7 @@ if __name__ == "__main__":
     sys.exit(1)
 
   mp.set_start_method("spawn")
-  renderer = Renderer(W, H)
+  renderer = Renderer()
 
   # TODO: proper camera calibration
   F = 525.0
@@ -54,6 +54,7 @@ if __name__ == "__main__":
 
     # display image
     f2.draw_img(idx1, idx2, f1, f2)
+    # renderer.vis.run()
     cv2.imshow("Display 2D", f2.img)
     if cv2.waitKey(1) & 0xFF == ord('q'): 
       break
@@ -63,3 +64,5 @@ if __name__ == "__main__":
   cap.release()
   cv2.destroyAllWindows()
 
+  print("Finished, press Q on the window to exit.")
+  renderer.close()

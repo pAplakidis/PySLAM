@@ -68,6 +68,8 @@ if __name__ == "__main__":
     # init viewer
     vis = o3d.visualization.Visualizer()
     vis.create_window("SLAM viz")
+    opt = vis.get_render_option()
+    opt.background_color = np.array([0, 0, 0])
     vis.add_geometry(pcd)
 
     # list to accumulate rendered frustums
