@@ -24,14 +24,28 @@ class Renderer:
     opt.background_color = np.array([0,0,0])
 
     self.frustums = []
-    self.view_initialized = False # flag to initialize view only once
+    self.all_points = np.zeros((0,3))
+    self.pcd = o3d.geometry.PointCloud()
+    self.vis.add_geometry(self.pcd)
 
   def draw(self, frames):
     for f in frames[len(self.frustums):]:
+      # poses
       fr = create_camera_frustum()
       fr.transform(f.pose)
       self.vis.add_geometry(fr)
       self.frustums.append(fr)
+
+      # points
+      if f.points is not None:
+        if self.all_points.size == 0:
+          self.all_points = f.points.copy()
+        else:
+          self.all_points = np.vstack([self.all_points, f.points])
+
+        self.pcd.points = o3d.utility.Vector3dVector(self.all_points)
+        self.pcd.paint_uniform_color([0.7,0.7,0.7])
+        self.vis.update_geometry(self.pcd)
 
     self.vis.poll_events()
     self.vis.update_renderer()

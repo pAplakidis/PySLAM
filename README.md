@@ -2,12 +2,14 @@
 
 A toy SLAM implmenetation in python.
 
-## Requirements
-
-- [Pangolin](https://github.com/uoip/pangolin)
-
 ## Setup
 
 ```
 pip3 install -r requirements.txt
+```
+
+## Usage
+
+```
+python3 slam.py./slam.py data/country-road-driving.mp4
 ```

@@ -1,9 +1,6 @@
 import os
 import numpy as np
 
-W = 1920 // 2
-H = 1080 // 2
-
 # colors shamelessly stolen from
 # https://github.com/MagicLeapResearch/SuperPointPretrainedNetwork/blob/master/demo_superpoint.py
 myjet = np.array([[0.        , 0.        , 0.5       ],

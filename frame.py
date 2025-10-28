@@ -47,7 +47,7 @@ def match_frames(f1, f2):
     residual_threshold=RANSAC_RESIDUAL_THRES,
     max_trials=RANSAC_MAX_TRIALS
   )
-  print("Matches:  %d -> %d -> %d -> %d" % (len(f1.des), len(matches), len(inliers), sum(inliers)))
+  print(f"Matches: f1.des={len(f1.des)} -> matches={len(matches)} -> inliers={len(inliers)} -> sum(inliers)={sum(inliers)}")
   return idx1[inliers], idx2[inliers], fundamentalToRt(model.params)
 
 
@@ -58,6 +58,7 @@ class Frame:
     self.kpus = None
     self.des = None
     self.pose = pose
+    self.points = None  # 3D points
 
     if img is not None:
       self.img = cv2.resize(img, (W, H))
@@ -69,7 +70,7 @@ class Frame:
       self._Kinv = np.linalg.inv(self.K)
     return self._Kinv
 
-  # normalized keypoints
+  # normalized keypoints (normalized camera coords, not raw pixels)
   @property
   def kps(self):
     self._kps = normalize(self.Kinv, self.kpus)
@@ -92,7 +93,7 @@ class Frame:
     self.kpus = np.array([(kp.pt[0], kp.pt[1]) for kp in kps])
     return self.kpus, self.des
 
-  def draw_img(self, idx1, idx2, f1, f2):
+  def annotate_img(self, idx1, idx2, f1, f2):
     for i, kp in enumerate(self.kpus):
       cv2.circle(self.img, (int(kp[0]), int(kp[1])), radius=3, color=(0, 255, 0))
 
