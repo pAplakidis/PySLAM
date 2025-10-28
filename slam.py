@@ -8,7 +8,7 @@ from typing import Tuple, Optional, List
 from utils import *
 from constants import *
 from frame import Frame, match_frames
-from renderer import Renderer
+from renderer import Display3D
 
 class Slam:
   def __init__(self, video_path, W, H, K=None):
@@ -20,7 +20,8 @@ class Slam:
 
     mp.set_start_method("spawn")
     self.cap = cv2.VideoCapture(sys.argv[1])
-    self.renderer = Renderer()
+    self.n_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    self.disp3d = Display3D(self.n_frames)
 
   @staticmethod
   def triangulate_points(idx1: np.ndarray, idx2: np.ndarray, f1: Frame, f2: Frame) -> np.ndarray:
@@ -67,7 +68,7 @@ class Slam:
     return idx1, idx2, f1, f2
 
   def display_step(self, idx1: int, idx2: int, f1: Frame, f2: Frame):
-    self.renderer.draw(self.frames)
+    self.disp3d.draw(self.frames)
     f2.annotate_img(idx1, idx2, f1, f2)
     cv2.imshow("Display 2D", f2.img)
 
@@ -92,8 +93,8 @@ class Slam:
     self.cap.release()
     cv2.destroyAllWindows()
     print("Finished, press Q on the window to exit.")
-    self.renderer.vis.run()
-    self.renderer.close()
+    self.disp3d.vis.run()
+    self.disp3d.close()
 
 
 if __name__ == "__main__":

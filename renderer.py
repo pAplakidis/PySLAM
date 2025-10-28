@@ -1,5 +1,7 @@
 import open3d as o3d
 import numpy as np
+from typing import Tuple
+from multiprocessing import Process, Queue
 
 def create_camera_frustum(scale=0.2, color=[0,1,0]):
   pts = np.array([
@@ -16,39 +18,90 @@ def create_camera_frustum(scale=0.2, color=[0,1,0]):
   fr.colors = o3d.utility.Vector3dVector([color]*len(lines))
   return fr
 
-class Renderer:
-  def __init__(self):
+
+class Display3D:
+  def __init__(self, max_frames=1000):
+    self.max_frames = max_frames
+
+    self.state = None
+    self.frustums = []
+    self.all_points = np.zeros((0,3))
+    self.fid = 0
+    self.q = Queue()
+
+    self.vp = Process(target=self.viewer_thread, args=(self.q,), daemon=True)
+    self.vp.start()
+
+  def init_display(self):
+    print("[Display3D] Initializing ...")
+
+    # init visualizer
     self.vis = o3d.visualization.Visualizer()
     self.vis.create_window(window_name="Display 3D")
     opt = self.vis.get_render_option()
     opt.background_color = np.array([0,0,0])
 
-    self.frustums = []
-    self.all_points = np.zeros((0,3))
-    self.pcd = o3d.geometry.PointCloud()
-    self.vis.add_geometry(self.pcd)
-
-  def draw(self, frames):
-    for f in frames[len(self.frustums):]:
-      # poses
+    # pre-render cameras and pointcloud
+    for _ in range(self.max_frames):
       fr = create_camera_frustum()
-      fr.transform(f.pose)
       self.vis.add_geometry(fr)
       self.frustums.append(fr)
 
-      # points
-      if f.points is not None:
-        if self.all_points.size == 0:
-          self.all_points = f.points.copy()
-        else:
-          self.all_points = np.vstack([self.all_points, f.points])
+    self.pcd = o3d.geometry.PointCloud()
+    self.vis.add_geometry(self.pcd)
 
-        self.pcd.points = o3d.utility.Vector3dVector(self.all_points)
-        self.pcd.paint_uniform_color([0.7,0.7,0.7])
-        self.vis.update_geometry(self.pcd)
+    print("[Display3D] Init done")
+
+  def viewer_thread(self, q):
+    self.init_display()
+    while True:
+      self.tick(q)
+
+  def tick(self, q):
+    while not q.empty():
+      self.state = q.get()
+
+    if self.state is None:
+      self.vis.poll_events()
+      self.vis.update_renderer()
+      return
+
+    poses, points = self.state
+    print(f"[renderer] poses: ({len(poses)}x{poses[0].shape}) - points: {points.shape}")
+
+    # poses
+    curr_fid = self.fid
+    for k, pose in enumerate(poses[curr_fid:]):
+      j = curr_fid + k
+      self.frustums[j].transform(pose)           
+      self.vis.update_geometry(self.frustums[j])
+      self.fid += 1
+
+    # points
+    if points is not None:
+      if self.all_points.size == 0:
+        self.all_points = points.copy()
+      else:
+        self.all_points = np.vstack([self.all_points, points])
+
+      self.pcd.points = o3d.utility.Vector3dVector(self.all_points)
+      self.pcd.paint_uniform_color([0.7,0.7,0.7])
+      self.vis.update_geometry(self.pcd)
 
     self.vis.poll_events()
     self.vis.update_renderer()
+
+  def draw(self, frames):
+    if self.q is None:
+      return
+
+    poses, points = [], []
+    for f in frames:
+      poses.append(f.pose)
+      if f.points is not None:
+        points.append(f.points)
+
+    self.q.put((poses, np.vstack(points)))
 
   def close(self):
     self.vis.destroy_window()
