@@ -41,9 +41,17 @@ class Slam:
 
     X = X_h[:3] / X_h[3]  # dehomogenize => shape 3×N
     mask = X_h[3] > 0     # keep only valid (in front of camera)
+    valid_indices = np.where(mask)[0]
+    valid_descriptors = f2.des[idx2][valid_indices]
     X = X[:,mask]
     f2.points = X.T       # N×3
-    return X.T
+
+    pixel_coords = f2.kpus[valid_indices].astype(np.int32)
+    pixel_coords = pixel_coords[:, ::-1]
+    colors = f2.img[pixel_coords[:, 0], pixel_coords[:, 1]]  # N×3
+    colors = colors[:, ::-1] / 255.0
+
+    return X.T, valid_descriptors, colors
 
   def step(
       self,
@@ -62,12 +70,26 @@ class Slam:
     f1, f2 = self.frames[-2], self.frames[-1]
     idx1, idx2, Rt = match_frames(f1, f2)
 
-    # update pointmap
+    # update pose
     f2.pose = f1.pose @ Rt
     print("pose:", f2.pose)
-    points = self.triangulate_points(idx1, idx2, f1, f2)
-    self.mapp.add_observation(points, f2.pose)
 
+    # update pointmap
+    # Only use matches where neither keypoint already has a 3D point
+    mask = ~f1.kp_has_3D[idx1] & ~f2.kp_has_3D[idx2]
+    new_idx1 = idx1[mask]
+    new_idx2 = idx2[mask]
+
+    if len(new_idx1) == 0:
+      return idx1, idx2, f1, f2  # nothing new to triangulate
+
+    points, descriptors, colors = self.triangulate_points(new_idx1, new_idx2, f1, f2)
+
+    # mark keypoints as now having 3D points
+    f1.kp_has_3D[new_idx1] = True
+    f2.kp_has_3D[new_idx2] = True
+
+    self.mapp.add_observation(points, f2.pose, colors)
     return idx1, idx2, f1, f2
 
   def display_step(self, idx1: int, idx2: int, f1: Frame, f2: Frame):

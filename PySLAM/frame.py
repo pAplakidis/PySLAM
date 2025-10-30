@@ -59,6 +59,7 @@ class Frame:
     self.des = None
     self.pose = pose
     self.points = None  # 3D points
+    self.kp_has_3D = np.array([])
 
     if img is not None:
       self.img = cv2.resize(img, (W, H))
@@ -87,10 +88,16 @@ class Frame:
     orb = cv2.ORB_create()
     pts = cv2.goodFeaturesToTrack(np.mean(self.img, axis=2).astype(np.uint8), 3000, qualityLevel=0.01, minDistance=7)
 
+    if pts is None:
+      self.kpus = np.empty((0, 2))
+      self.des = np.empty((0, 32), dtype=np.uint8)
+      self.kp_has_3D = np.zeros(0, dtype=bool)
+
     kps = [cv2.KeyPoint(x=f[0][0], y=f[0][1], size=20) for f in pts]
     kps, self.des = orb.compute(self.img, kps)
-
     self.kpus = np.array([(kp.pt[0], kp.pt[1]) for kp in kps])
+
+    self.kp_has_3D = np.zeros(len(self.kpus), dtype=bool)
     return self.kpus, self.des
 
   def annotate_img(self, idx1, idx2, f1, f2):

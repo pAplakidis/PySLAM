@@ -4,6 +4,8 @@ from multiprocessing import Process, Queue
 
 from pointmap import PointMap
 
+# TODO: optimize (too intensive)
+# TODO: process first + render when done mode/option
 def create_camera_frustum(scale=0.2, color=[0,1,0]):
   pts = np.array([
     [0, 0, 0],
@@ -40,7 +42,7 @@ class Display3D:
 
     # init visualizer
     self.vis = o3d.visualization.Visualizer()
-    self.vis.create_window(window_name="Display 3D", width=self.W, height=self.H)
+    self.vis.create_window(window_name="Display 3D")#, width=self.W, height=self.H)
     opt = self.vis.get_render_option()
     opt.background_color = np.array([0,0,0])
 
@@ -74,9 +76,7 @@ class Display3D:
       self.vis.poll_events()
       self.vis.update_renderer()
       return
-
-    poses, points = self.state
-    print(f"[renderer] poses: ({len(poses)}x{poses[0].shape}) - points: {points.shape}")
+    poses, points, colors = self.state
 
     # poses
     curr_fid = self.fid
@@ -86,11 +86,10 @@ class Display3D:
       self.vis.update_geometry(self.frustums[j])
       self.fid += 1
 
-    # TODO: color points based on pixel color
     # points
     self.points = points
     self.pcd.points = o3d.utility.Vector3dVector(self.points)
-    self.pcd.paint_uniform_color([0.7,0.7,0.7])
+    self.pcd.colors = o3d.utility.Vector3dVector(colors)
     self.vis.update_geometry(self.pcd)
 
     self.vis.poll_events()
@@ -100,8 +99,9 @@ class Display3D:
     if self.q is None:
       return
 
-    poses, points = mapp.poses.copy(), np.copy(mapp.points)
-    self.q.put((poses, np.vstack(points)))
+    poses, points, colors = mapp.poses.copy(), np.copy(mapp.points), mapp.colors.copy()
+    print(f"[renderer] poses: ({len(poses)}x{poses[0].shape}) - points: {points.shape} - colors: {colors.shape}")
+    self.q.put((poses, np.vstack(points), np.vstack(colors)))
 
   def close(self):
     self.vis.destroy_window()
