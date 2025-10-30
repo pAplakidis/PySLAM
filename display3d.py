@@ -2,6 +2,8 @@ import numpy as np
 import open3d as o3d
 from multiprocessing import Process, Queue
 
+from pointmap import PointMap
+
 def create_camera_frustum(scale=0.2, color=[0,1,0]):
   pts = np.array([
     [0, 0, 0],
@@ -26,7 +28,7 @@ class Display3D:
 
     self.state = None
     self.frustums = []
-    self.all_points = np.zeros((0,3))
+    self.points = np.zeros((0,3))
     self.fid = 0
     self.q = Queue()
 
@@ -85,30 +87,19 @@ class Display3D:
       self.fid += 1
 
     # points
-    if points is not None:
-      if self.all_points.size == 0:
-        self.all_points = points.copy()
-      else:
-        self.all_points = np.vstack([self.all_points, points])
-
-      self.pcd.points = o3d.utility.Vector3dVector(self.all_points)
+      self.points = points
+      self.pcd.points = o3d.utility.Vector3dVector(self.points)
       self.pcd.paint_uniform_color([0.7,0.7,0.7])
       self.vis.update_geometry(self.pcd)
 
     self.vis.poll_events()
     self.vis.update_renderer()
 
-  # TODO: pointmap as param
-  def draw(self, frames):
+  def draw(self, mapp: PointMap):
     if self.q is None:
       return
 
-    poses, points = [], []
-    for f in frames:
-      poses.append(f.pose)
-      if f.points is not None:
-        points.append(f.points)
-
+    poses, points = mapp.poses.copy(), np.copy(mapp.points)
     self.q.put((poses, np.vstack(points)))
 
   def close(self):

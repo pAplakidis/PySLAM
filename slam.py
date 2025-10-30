@@ -8,6 +8,7 @@ from typing import Tuple, Optional, List
 from utils import *
 from constants import *
 from frame import Frame, match_frames
+from pointmap import PointMap
 from display3d import Display3D
 
 class Slam:
@@ -17,8 +18,9 @@ class Slam:
     self.H = H
     self.K = K if K is not None else np.array([[F, 0, W/2], [0, F, H/2], [0, 0, 1]])  # TODO: proper camera calibration
     self.frames: List[Frame] = []
+    self.mapp = PointMap()
 
-    mp.set_start_method("spawn")
+    mp.set_start_method("spawn")  # MacOS
     self.cap = cv2.VideoCapture(sys.argv[1])
     self.n_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
     self.disp3d = Display3D(self.W, self.H, max_frames=self.n_frames)
@@ -41,7 +43,7 @@ class Slam:
     mask = X_h[3] > 0     # keep only valid (in front of camera)
     X = X[:,mask]
     f2.points = X.T       # N×3
-    return X
+    return X.T
 
   def step(
       self,
@@ -60,15 +62,16 @@ class Slam:
     f1, f2 = self.frames[-2], self.frames[-1]
     idx1, idx2, Rt = match_frames(f1, f2)
 
-    # update pose and pointmap
+    # update pointmap
     f2.pose = f1.pose @ Rt
     print("pose:", f2.pose)
-    self.triangulate_points(idx1, idx2, f1, f2)
+    points = self.triangulate_points(idx1, idx2, f1, f2)
+    self.mapp.add_observation(points, f2.pose)
 
     return idx1, idx2, f1, f2
 
   def display_step(self, idx1: int, idx2: int, f1: Frame, f2: Frame):
-    self.disp3d.draw(self.frames)
+    self.disp3d.draw(self.mapp)
     f2.annotate_img(idx1, idx2, f1, f2)
     cv2.imshow("Display 2D", f2.img)
 
