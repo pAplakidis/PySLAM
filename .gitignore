@@ -1,5 +1,4 @@
 .*.swp
 __pycache__/
 venv/
-*.png
-*.json
+**/.DS_Store

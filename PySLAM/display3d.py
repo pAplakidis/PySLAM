@@ -86,11 +86,12 @@ class Display3D:
       self.vis.update_geometry(self.frustums[j])
       self.fid += 1
 
+    # TODO: color points based on pixel color
     # points
-      self.points = points
-      self.pcd.points = o3d.utility.Vector3dVector(self.points)
-      self.pcd.paint_uniform_color([0.7,0.7,0.7])
-      self.vis.update_geometry(self.pcd)
+    self.points = points
+    self.pcd.points = o3d.utility.Vector3dVector(self.points)
+    self.pcd.paint_uniform_color([0.7,0.7,0.7])
+    self.vis.update_geometry(self.pcd)
 
     self.vis.poll_events()
     self.vis.update_renderer()
