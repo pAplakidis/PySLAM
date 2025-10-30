@@ -1,15 +1,14 @@
-import open3d as o3d
 import numpy as np
-from typing import Tuple
+import open3d as o3d
 from multiprocessing import Process, Queue
 
 def create_camera_frustum(scale=0.2, color=[0,1,0]):
   pts = np.array([
-    [0,0,0],
-    [-0.5,-0.5,1],
-    [ 0.5,-0.5,1],
-    [ 0.5, 0.5,1],
-    [-0.5, 0.5,1],
+    [0, 0, 0],
+    [-0.5, -0.5, -1],
+    [ 0.5, -0.5, -1],
+    [ 0.5,  0.5, -1],
+    [-0.5,  0.5, -1],
   ]) * scale
   lines = [[0,1],[0,2],[0,3],[0,4],[1,2],[2,3],[3,4],[4,1]]
   fr = o3d.geometry.LineSet()
@@ -20,7 +19,7 @@ def create_camera_frustum(scale=0.2, color=[0,1,0]):
 
 
 class Display3D:
-  def __init__(self, W, H, max_frames=1000):
+  def __init__(self, W: int, H: int, max_frames=1000):
     self.W = W
     self.H = H
     self.max_frames = max_frames
@@ -43,6 +42,12 @@ class Display3D:
     opt = self.vis.get_render_option()
     opt.background_color = np.array([0,0,0])
 
+    # zoom behavior
+    ctr = self.vis.get_view_control()
+    ctr.set_constant_z_far(1000.0)
+    ctr.set_constant_z_near(0.01)
+    ctr.set_zoom(0.5)
+
     # pre-render cameras and pointcloud
     for _ in range(self.max_frames):
       fr = create_camera_frustum()
@@ -54,12 +59,12 @@ class Display3D:
 
     print("[Display3D] Init done")
 
-  def viewer_thread(self, q):
+  def viewer_thread(self, q: Queue):
     self.init_display()
     while True:
       self.tick(q)
 
-  def tick(self, q):
+  def tick(self, q: Queue):
     while not q.empty():
       self.state = q.get()
 
@@ -93,6 +98,7 @@ class Display3D:
     self.vis.poll_events()
     self.vis.update_renderer()
 
+  # TODO: pointmap as param
   def draw(self, frames):
     if self.q is None:
       return
