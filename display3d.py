@@ -20,7 +20,9 @@ def create_camera_frustum(scale=0.2, color=[0,1,0]):
 
 
 class Display3D:
-  def __init__(self, max_frames=1000):
+  def __init__(self, W, H, max_frames=1000):
+    self.W = W
+    self.H = H
     self.max_frames = max_frames
 
     self.state = None
@@ -37,7 +39,7 @@ class Display3D:
 
     # init visualizer
     self.vis = o3d.visualization.Visualizer()
-    self.vis.create_window(window_name="Display 3D")
+    self.vis.create_window(window_name="Display 3D", width=self.W, height=self.H)
     opt = self.vis.get_render_option()
     opt.background_color = np.array([0,0,0])
 
