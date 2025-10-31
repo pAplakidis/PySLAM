@@ -103,7 +103,7 @@ class Slam:
       ret, img = self.cap.read()
       if not ret:
         break
-      print(f"Frame {i+1}")
+      print(f"Frame {i+1}/{self.n_frames}")
 
       idx1, idx2, f1, f2 = self.step(i, img)
       if idx1 is None or idx2 is None or f1 is None or f2 is None:

@@ -2,6 +2,8 @@
 
 A toy SLAM implmenetation in python.
 
+Heavily inspired by geohot's [twitchslam](https://github.com/geohot/twitchslam)
+
 ## Setup
 
 ```

@@ -6,7 +6,7 @@ from pointmap import PointMap
 
 # TODO: optimize (too intensive)
 # TODO: process first + render when done mode/option
-def create_camera_frustum(scale=0.2, color=[0,1,0]):
+def create_camera_frustum(scale=0.5, color=[0,1,0]):
   pts = np.array([
     [0, 0, 0],
     [-0.5, -0.5, -1],
