@@ -4,3 +4,4 @@ scikit-image
 PyOpenGL
 pybind11
 open3d
+g2o-python

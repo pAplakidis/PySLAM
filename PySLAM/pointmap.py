@@ -9,6 +9,7 @@ class PointMap:
 
   def add_observation(self, points: np.ndarray, pose: np.ndarray, colors: np.ndarray):
     self.poses.append(pose)
+    start_idx = len(self.points)
 
     if self.points.size == 0:
       self.points = points.copy()
@@ -19,3 +20,5 @@ class PointMap:
       self.colors = colors.copy()
     else:
       self.colors = np.vstack([self.colors, colors])
+
+    return list(range(start_idx, len(self.points)))
