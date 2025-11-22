@@ -42,7 +42,7 @@ class Display3D:
 
     # init visualizer
     self.vis = o3d.visualization.Visualizer()
-    self.vis.create_window(window_name="Display 3D")#, width=self.W, height=self.H)
+    self.vis.create_window(window_name="Display 3D", width=self.W, height=self.H)
     opt = self.vis.get_render_option()
     opt.background_color = np.array([0,0,0])
 

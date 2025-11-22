@@ -34,6 +34,7 @@ python3 PySLAM/slam.py./slam.py data/country-road-driving.mp4
 
 ### TODO
 
+- Use matches to avoid duplicate 3D points
 - Bundle Adjustment (DONE)
 - Loop Closure
 - Pose Graph Optmiziation

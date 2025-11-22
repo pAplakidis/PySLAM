@@ -118,7 +118,7 @@ class Slam:
     f1.kp_has_3D[new_idx1] = True
     f2.kp_has_3D[new_idx2] = True
 
-    map_indices = self.mapp.add_observation(points, f2.pose, colors)
+    map_indices = self.mapp.add_observation(points, descriptors, f2.pose, colors)
     self.optim_step(f2, map_indices)
 
     return idx1, idx2, f1, f2
